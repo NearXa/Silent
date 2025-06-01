@@ -1,6 +1,6 @@
 # Silent
 
-**Silent** est un scanner de ports furtif et personnalisable, écrit en pur Bash.
+**Silent** est un scanner de ports furtif et personnalisable.
 Il utilise `hping3`, `nc` et d’autres outils natifs pour détecter avec précision et discrétion les ports ouverts, fermés et filtrés.
 
 Développé en solo par **NearXa**.
@@ -9,11 +9,11 @@ Développé en solo par **NearXa**.
 
 ## 🚀 Fonctionnalités
 
-* **Scan SYN furtif** avec des flags spécialement conçus (`hping3`)
+* **Scan SYN furtif** avec des flags sur-mesure (`hping3`)
 * **Délai ajustable** entre chaque sonde (`-d <secondes>`)
 * **Mode super-furtif** : ordre de ports aléatoire et intervalles de délai dynamiques (`-s`)
 * **Sortie verbeuse** pour suivre le scan en temps réel (`-v`)
-* **Fichiers de log auto-générés** nommés `silent_<IP>_<YYYYMMDD_HHMMSS>.log`
+* **Fichiers de log auto-générés** nommés `Silent_<IP>_<YYYYMMDD_HHMMSS>.log`
 * **Détection des ports filtrés** via la logique RST/ACK
 
 ---
