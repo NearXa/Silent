@@ -1,127 +1,122 @@
 #!/bin/bash
 
-# Clear screen and show banner
+# Banner display
 clear
-echo "=============================================="
-echo "     _   _                   _           "
-echo "    | \\ | | _____      _____| | ___  ___ "
-echo "    |  \\| |/ _ \\ \\ /\\ / / _ \\ |/ _ \\/ __|"
-echo "    | |\\  |  __/\\ V  V /  __/ |  __/\\__ \\"
-echo "    |_| \\_|\\___| \\_/\\_/ \\___|_|\\___||___/"
-echo
-echo "----------------------------------------------"
-echo "      Silent – Stealth Bash Port Scanner"
-echo "     Coded by: NearXa – Solo Project 2025"
-echo "=============================================="
+cat << EOF
+┌──────────────────────────────────────────────┐
+│                                              │
+│       Silent - Stealth Port Scanner          │
+│       Author: NearXa - 2025 Solo Project     │
+│                                              │
+└──────────────────────────────────────────────┘
+EOF
 
-# Random hacker quotes
-QUOTES=(
-  "\"Silence is loud when ports speak.\""
-  "\"No port is safe when the shadows scan.\""
-  "\"Invisible packets. Visible results.\""
-  "\"Stealth isn't optional. It's protocol.\""
-  "\"You can't hide from what you can't see coming.\""
-  "\"Every closed door is just a delayed response.\""
-  "\"My SYN is your weakness.\""
-  "\"This isn't scanning. It's recon warfare.\""
-  "\"No firewall survives curiosity forever.\""
-  "\"Your perimeter? Already observed.\""
+# Inspirational hacker quotes
+HACKER_QUOTES=(
+  "Ports whisper secrets in the silence."
+  "Shadows scan where light fears to tread."
+  "Packets unseen, results revealed."
+  "Stealth: not a choice, but a necessity."
+  "What you can't see will find you."
+  "Closed ports? Just a matter of time."
+  "Your defenses meet my SYN."
+  "Scanning? No, this is digital espionage."
+  "Firewalls crumble under persistent curiosity."
+  "Your network's edge? Already mapped."
 )
-RANDOM_QUOTE=${QUOTES[$RANDOM % ${#QUOTES[@]}]}
-echo
-echo "💬 $RANDOM_QUOTE"
-echo
+SELECTED_QUOTE=${HACKER_QUOTES[$RANDOM % ${#HACKER_QUOTES[@]}]}
+echo -e "\n🔍 $SELECTED_QUOTE\n"
 
-# Check dependencies
-for cmd in hping3 nc timeout awk; do
-    if ! command -v $cmd >/dev/null 2>&1; then
-        echo "[!] Error: '$cmd' is required but not installed."
-        exit 1
-    fi
-done
-
-# Default options
-DELAY=0.1
-STEALTH=false
-VERBOSE=false
-
-# Option parsing
-while getopts "d:sv" opt; do
-    case $opt in
-        d) DELAY=$OPTARG ;;
-        s) STEALTH=true ;;
-        v) VERBOSE=true ;;
-        *) ;;
-    esac
-done
-shift $((OPTIND -1))
-
-# Args
-TARGET=$1
-START_PORT=$2
-END_PORT=$3
-
-if [[ -z $TARGET || -z $START_PORT || -z $END_PORT ]]; then
-    echo "Usage: $0 [-d delay] [-s] [-v] <ip> <port_start> <port_end>"
-    echo "  -d delay      Delay between scans (e.g. 0.2 for 200ms)"
-    echo "  -s            Super-stealth mode (random ports + random delays)"
-    echo "  -v            Verbose mode (show each port being scanned)"
+# Dependency verification
+DEPENDENCIES=("hping3" "nc" "timeout" "awk")
+for dep in "${DEPENDENCIES[@]}"; do
+  if ! command -v "$dep" &>/dev/null; then
+    echo "[!] Missing dependency: '$dep' is not installed."
     exit 1
+  fi
+done
+
+# Default settings
+SCAN_DELAY=0.1
+STEALTH_MODE=false
+VERBOSE_MODE=false
+
+# Parse command-line options
+while getopts ":d:sv" option; do
+  case $option in
+    d) SCAN_DELAY=$OPTARG ;;
+    s) STEALTH_MODE=true ;;
+    v) VERBOSE_MODE=true ;;
+    *) ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+# Input validation
+TARGET_IP=$1
+PORT_START=$2
+PORT_END=$3
+
+if [[ -z $TARGET_IP || -z $PORT_START || -z $PORT_END ]]; then
+  cat << EOF
+Usage: $0 [-d delay] [-s] [-v] <target_ip> <start_port> <end_port>
+  -d delay    Set delay between scans (e.g., 0.2 for 200ms)
+  -s          Enable super-stealth mode (randomized ports and delays)
+  -v          Enable verbose output (displays each scanned port)
+EOF
+  exit 1
 fi
 
-# Setup
-FORMAT_IP=$(echo $TARGET | tr '.' '_')
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-LOG_FILE="Silent_${FORMAT_IP}_${TIMESTAMP}.log"
+# Initialize logging
+IP_FORMATTED=$(echo "$TARGET_IP" | tr '.' '_')
+CURRENT_TIME=$(date +"%Y%m%d_%H%M%S")
+LOGFILE="Silent_${IP_FORMATTED}_${CURRENT_TIME}.log"
 
-echo "[+] Stealth scan on $TARGET ($START_PORT-$END_PORT)"
-echo "[+] Delay: $DELAY sec"
-$STEALTH && echo "[+] Super-stealth mode activated"
-$VERBOSE && echo "[+] Verbose mode ON"
+echo "[+] Initiating scan on $TARGET_IP (Ports: $PORT_START-$PORT_END)"
+echo "[+] Scan delay: $SCAN_DELAY seconds"
+$STEALTH_MODE && echo "[+] Super-stealth mode: ON"
+$VERBOSE_MODE && echo "[+] Verbose output: ON"
 
-PORTS=$(seq $START_PORT $END_PORT)
-$STEALTH && PORTS=$(echo "$PORTS" | shuf)
+# Port sequence setup
+PORT_RANGE=$(seq "$PORT_START" "$PORT_END")
+$STEALTH_MODE && PORT_RANGE=$(echo "$PORT_RANGE" | shuf)
 
-MAX_PARALLEL=20
-SEMAPHORE="/tmp/Silent.sem.$$"
-mkfifo "$SEMAPHORE"
-exec 3<> "$SEMAPHORE"
-rm "$SEMAPHORE"
-for ((i=0;i<MAX_PARALLEL;i++)); do echo >&3; done
+# Semaphore for parallel scanning
+MAX_CONCURRENT=20
+TEMP_SEM="/tmp/silent_scan_$$.fifo"
+mkfifo "$TEMP_SEM"
+exec 4<>"$TEMP_SEM"
+rm "$TEMP_SEM"
+for ((i=0; i<MAX_CONCURRENT; i++)); do echo >&4; done
 
-# Scan function
-scan_port() {
-    local ip=$1
-    local port=$2
+# Port scanning function
+perform_scan() {
+  local target=$1
+  local port=$2
 
-    $VERBOSE && echo "[*] Scanning port $port..."
+  $VERBOSE_MODE && echo "[*] Probing port $port..."
 
-    timeout 2 hping3 -S -p $port -c 1 $ip 2>/dev/null | grep -q "flags=SA"
-    if [[ $? -eq 0 ]]; then
-        echo "Port $port : OPEN" | tee -a "$LOG_FILE"
-    else
-        timeout 2 hping3 -S -p $port -c 1 $ip 2>/dev/null | grep -q "flags=RA"
-        if [[ $? -eq 0 ]]; then
-            echo "Port $port : CLOSED" >> "$LOG_FILE"
-        else
-            echo "Port $port : FILTERED/NO RESPONSE" >> "$LOG_FILE"
-        fi
-    fi
+  if timeout 2 hping3 -S -p "$port" -c 1 "$target" 2>/dev/null | grep -q "flags=SA"; then
+    echo "Port $port: OPEN" | tee -a "$LOGFILE"
+  elif timeout 2 hping3 -S -p "$port" -c 1 "$target" 2>/dev/null | grep -q "flags=RA"; then
+    echo "Port $port: CLOSED" >> "$LOGFILE"
+  else
+    echo "Port $port: FILTERED/NO RESPONSE" >> "$LOGFILE"
+  fi
 }
 
-# Scan loop
-for port in $PORTS; do
-    read -u 3
-    {
-        $STEALTH && sleep $(awk -v min=$DELAY 'BEGIN { srand(); print min + rand() * min }')
-        scan_port "$TARGET" "$port"
-        echo >&3
-    } &
+# Main scanning loop
+for port in $PORT_RANGE; do
+  read -u 4
+  {
+    $STEALTH_MODE && sleep $(awk -v min="$SCAN_DELAY" 'BEGIN { srand(); print min + rand() * min }')
+    perform_scan "$TARGET_IP" "$port"
+    echo >&4
+  } &
 done
 
 wait
-exec 3>&-
+exec 4>&-
 
-echo
-echo "Scan complete. Results saved in $LOG_FILE"
-echo "→ Target probed. No place left to hide."
+echo -e "\n[+] Scan completed. Results logged to $LOGFILE"
+echo "[+] Target fully reconnoitered."
